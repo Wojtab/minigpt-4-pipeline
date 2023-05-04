@@ -382,24 +382,6 @@ def interpolate_pos_embed(model, checkpoint_model):
             pos_tokens = pos_tokens.permute(0, 2, 3, 1).flatten(1, 2)
             new_pos_embed = torch.cat((extra_tokens, pos_tokens), dim=1)
             checkpoint_model['pos_embed'] = new_pos_embed
-            
-            
-def convert_weights_to_fp16(model: nn.Module):
-    """Convert applicable model parameters to fp16"""
-
-    def _convert_weights_to_fp16(l):
-        if isinstance(l, (nn.Conv1d, nn.Conv2d, nn.Linear)):
-            l.weight.data = l.weight.data.half()
-            if l.bias is not None:
-                l.bias.data = l.bias.data.half()
-
-#         if isinstance(l, (nn.MultiheadAttention, Attention)):
-#             for attr in [*[f"{s}_proj_weight" for s in ["in", "q", "k", "v"]], "in_proj_bias", "bias_k", "bias_v"]:
-#                 tensor = getattr(l, attr)
-#                 if tensor is not None:
-#                     tensor.data = tensor.data.half()
-
-    model.apply(_convert_weights_to_fp16)
     
     
 def create_eva_vit_g(img_size=224,drop_path_rate=0.4,use_checkpoint=False,precision="fp16"):
@@ -422,11 +404,6 @@ def create_eva_vit_g(img_size=224,drop_path_rate=0.4,use_checkpoint=False,precis
     )
     state_dict = torch.load(cached_file, map_location="cpu")    
     interpolate_pos_embed(model,state_dict)
-    
-    incompatible_keys = model.load_state_dict(state_dict, strict=False)
-#     print(incompatible_keys)
-    
-    if precision == "fp16":
-#         model.to("cuda") 
-        convert_weights_to_fp16(model)
+    model.load_state_dict(state_dict, strict=False)
+
     return model

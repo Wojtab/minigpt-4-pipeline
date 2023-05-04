@@ -4,34 +4,26 @@
  SPDX-License-Identifier: BSD-3-Clause
  For full license text, see the LICENSE_Lavis file in the repo root or https://opensource.org/licenses/BSD-3-Clause
 """
-import contextlib
 import logging
 import torch
 import torch.nn as nn
 
 from .dist_utils import download_cached_file
-from .base_model import BaseModel
 from .Qformer import BertConfig, BertLMHeadModel
 from .eva_vit import create_eva_vit_g
 from transformers import BertTokenizer
 
 
-class Blip2Base(BaseModel):
+class Blip2Base(nn.Module):
     @classmethod
     def init_tokenizer(cls):
         tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
         tokenizer.add_special_tokens({"bos_token": "[DEC]"})
         return tokenizer
 
-    def maybe_autocast(self, dtype=torch.float16):
-        # if on cpu, don't use autocast
-        # if on gpu, use autocast with dtype if provided, otherwise use torch.float16
-        enable_autocast = self.device != torch.device("cpu")
-
-        if enable_autocast:
-            return torch.cuda.amp.autocast(dtype=dtype)
-        else:
-            return contextlib.nullcontext()
+    @property
+    def device(self):
+        return list(self.parameters())[0].device
 
     @classmethod
     def init_Qformer(cls, num_query_token, vision_width, cross_attention_freq=2):
@@ -41,6 +33,7 @@ class Blip2Base(BaseModel):
         encoder_config.add_cross_attention = True
         encoder_config.cross_attention_freq = cross_attention_freq
         encoder_config.query_length = num_query_token
+        encoder_config.is_decoder = True
         Qformer = BertLMHeadModel(config=encoder_config)
         query_tokens = nn.Parameter(
             torch.zeros(1, num_query_token, encoder_config.hidden_size)
@@ -74,12 +67,6 @@ class Blip2Base(BaseModel):
         logging.info("load checkpoint from %s" % url_or_filename)
 
         return msg
-
-
-def disabled_train(self, mode=True):
-    """Overwrite model.train with this function to make sure train/eval mode
-    does not change anymore."""
-    return self
 
 
 class LayerNorm(nn.LayerNorm):
