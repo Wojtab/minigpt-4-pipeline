@@ -9,6 +9,7 @@ from huggingface_hub import hf_hub_download
 from .minigpt4.processor import Blip2ImageEvalProcessor
 from .minigpt4.mini_gpt4 import MiniGPT4
 
+
 class MiniGPT4_Pipeline(AbstractMultimodalPipeline):
     def __init__(self, params: dict) -> None:
         super().__init__()
